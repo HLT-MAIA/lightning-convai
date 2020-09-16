@@ -38,7 +38,9 @@ python cli.py train -f configs/example.yaml
 ### Monitor training with Tensorboard:
 Launch tensorboard with:
 
+```
 tensorboard --logdir="experiments/"
+```
 
 ### Test:
 
@@ -51,7 +53,7 @@ python cli.py test --experiment experiments/{experiment_id}/ --test_set data/per
 where `experiment_id` is the name of the experiment folder containing the model you want to test.
 
 ```
-**Options:**
+Options:
   --experiment PATH    Path to the experiment folder containing the checkpoint
                        we want to interact with.  [required]
 
@@ -94,12 +96,12 @@ Training with the `example.yaml` config files should result in a model that achi
 
 | Metric  | Result |
 | :-----: | :----: |
-| Hits@1 ↑ | 0.8023 |
-| Hits@5 ↑ | 0.9721 |
-| Hits@10 ↑ | 0.9948 |
-| BLEU    ↑ | 2.7799 |
-| TER    ↓ | 1.0497 |
-| BERTScore |       |
+| Hits@1↑ | 0.8023 |
+| Hits@5↑ | 0.9721 |
+| Hits@10↑ | 0.9948 |
+| BLEU↑ | 2.7799 |
+| TER↓ | 1.0497 |
+| BERTScore↑ |  0.8548 |
 
 ### Code Style:
 All the code follows the same style we use Black.
