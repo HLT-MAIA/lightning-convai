@@ -303,13 +303,16 @@ def test(
     click.secho(f"TER: {ter}", fg="blue")
 
     # BERTScore returns precison, recall, f1.. we will use F1
-    bertscore = bert_score.score(
-        cands=sys,
-        refs=refs[0],
-        lang="en",
-        verbose=False,
-        nthreads=4,
-    )[2] 
+    bertscore = float(
+        bert_score.score(
+            cands=sys,
+            refs=refs[0],
+            lang="en",
+            verbose=False,
+            nthreads=4,
+        )[2].mean()
+    )
+    click.secho(f"BERTScore: {bertscore}", fg="blue")
 
     # 8) Saves results.
     if isinstance(to_json, str):
