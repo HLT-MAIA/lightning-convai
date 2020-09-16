@@ -92,7 +92,7 @@ python cli.py interact --experiment experiments/{experiment_id}/
 
 ## Benchmarks:
 
-Training with the `example.yaml` config files should result in a model that achieves:
+Training with the `example.yaml` config should result in the following:
 
 | Metric  | Result |
 | :-----: | :----: |
@@ -101,7 +101,7 @@ Training with the `example.yaml` config files should result in a model that achi
 | Hits@10↑ | 0.9948 |
 | BLEU↑ | 2.7799 |
 | TER↓ | 1.0497 |
-| BERTScore↑ |  0.8548 |
+| BERTScore↑ | 0.8548 |
 
 ### Code Style:
 All the code follows the same style we use Black.
