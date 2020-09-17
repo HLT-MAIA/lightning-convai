@@ -169,7 +169,7 @@ class DataModule(pl.LightningDataModule):
             data_folder
             + ".dataset_"
             + str(dataset_hash)
-            + self.hparams.pretrained_model
+            + self.hparams.pretrained_model.split("/")[0] # split(/) for microsoft/DialoGPT-small
         )
 
         if os.path.isfile(dataset_cache):

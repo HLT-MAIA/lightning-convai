@@ -20,7 +20,7 @@ virtualenv -p python3.6 convai-env
 source convai-env/bin/activate
 
 git clone https://github.com/ricardorei/lightning-convai
-cd ligthning-conv-ai
+cd lightning-convai
 pip install -r requirements.txt
 ```
 
