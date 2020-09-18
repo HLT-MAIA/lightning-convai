@@ -12,7 +12,7 @@ from torchnlp.encoders.text.text_encoder import TextEncoder
 SPECIAL_TOKENS = ["<bos>", "<eos>", "<speaker1>", "<speaker2>", "<pad>"]
 ATTR_TO_SPECIAL_TOKEN = {
     "bos_token": "<bos>",
-    "eos_token": "<eos>", # "<|endoftext|>" for DialoGPT2!
+    "eos_token": "<eos>",  # "<|endoftext|>" for DialoGPT2!
     "pad_token": "<pad>",
     "additional_special_tokens": ["<speaker1>", "<speaker2>"],
 }

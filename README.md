@@ -94,14 +94,14 @@ python cli.py interact --experiment experiments/{experiment_id}/
 
 Training with the `example.yaml` config should result in the following:
 
-| Metric  | Result |
-| :-----: | :----: |
-| Hits@1↑ | 0.8023 |
-| Hits@5↑ | 0.9721 |
-| Hits@10↑ | 0.9948 |
-| BLEU↑ | 2.7799 |
-| TER↓ | 1.0497 |
-| BERTScore↑ | 0.8548 |
+| Metric  | GPT2  | DialoGPT-small |
+| :-----: | :----: | :----: |
+| Hits@1↑ | 0.8023 | 0.8231 |
+| Hits@5↑ | 0.9721 | 0.9771 |
+| Hits@10↑ | 0.9948 | 0.9960 |
+| BLEU↑ | 2.7799 | 2.9633 |
+| TER↓ | 1.0497 | 1.0528 |
+| BERTScore↑ | 0.8548 | 0.8548 |
 
 ### Code Style:
 All the code follows the same style we use Black.

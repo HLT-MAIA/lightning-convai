@@ -28,7 +28,7 @@ max_epochs: 3                             # Max number of epochs
 # resume_from_checkpoint: checkpoint.ckpt # To resume training from a specific checkpoint pass in the path here.
 
 # --------------------------------- Dataset -------------------------------------------------------
-pretrained_model: gpt2
+pretrained_model: microsoft/DialoGPT-small
 # dataset_path: path/to/data.json         # By default we used the PersonaChat corpus but if you respect the same structure other data can be used.
 batch_size: 2                             # Batche size used during training.
 max_history: 2                            # Max number of context sentences

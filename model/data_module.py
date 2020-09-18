@@ -165,12 +165,13 @@ class DataModule(pl.LightningDataModule):
             int(hashlib.sha256(dataset_path.encode("utf-8")).hexdigest(), 16) % 10 ** 8
         )
         # To avoid using cache for different models
-        dataset_cache = (
-            data_folder
-            + ".dataset_"
-            + str(dataset_hash)
-            + self.hparams.pretrained_model.split("/")[0] # split(/) for microsoft/DialoGPT-small
+        # split(/) for microsoft/DialoGPT-small
+        pretrained_model = (
+            self.hparams.pretrained_model.split("/")[1]
+            if "/" in self.hparams.pretrained_model
+            else self.hparams.pretrained_model
         )
+        dataset_cache = data_folder + ".dataset_" + str(dataset_hash) + pretrained_model
 
         if os.path.isfile(dataset_cache):
             click.secho(f"Loading tokenized dataset from cache: {dataset_cache}.")
