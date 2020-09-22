@@ -103,6 +103,19 @@ Training with the `example.yaml` config should result in the following:
 | TER↓ | 1.0497 | 1.0528 |
 | BERTScore↑ | 0.8548 | 0.8548 |
 
+Download DialoGPT2-small trained with PersonaChat:
+
+```bash
+cd experiments
+wget https://unbabel-experimental-models.s3.amazonaws.com/maia/persona/dialogpt2-small.zip
+unzip dialogpt2-small.zip
+```
+
+Test the model:
+```
+python cli.py test --experiment experiments/dialogpt2-small/ --test_set data/personachat_val.json
+```
+
 ### Code Style:
 All the code follows the same style we use Black.
 
