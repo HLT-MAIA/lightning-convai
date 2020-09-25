@@ -4,6 +4,8 @@ This code is based on the [transfer-learning-conv-ai](https://github.com/hugging
 
 The major difference is that we use [PyTorch Lightning](https://pytorch-lightning.readthedocs.io/en/0.9.0/) instead of [Ignite](https://pytorch.org/ignite/) and a more "up to date" version of [Transformers](https://huggingface.co/transformers/). We also made an effort to make everything well documented and "easy" to understand.
 
+[Presentation Slides](https://docs.google.com/presentation/d/1NEWO733VMVETi4DPQeFERTuhKHBxODKFS7AFTHmBAbU/edit?usp=sharing)
+
 # Model Architecture
 
 <div style="text-align:center"><img src="resources/convai_model.png" alt="architecture"></div>
