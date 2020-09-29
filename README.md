@@ -21,7 +21,7 @@ Our model is built on top of a pretrained GPT2 model and its is trained in a mul
 virtualenv -p python3.6 convai-env
 source convai-env/bin/activate
 
-git clone https://github.com/ricardorei/lightning-convai
+git clone https://github.com/HLT-MAIA/lightning-convai
 cd lightning-convai
 pip install -r requirements.txt
 ```
