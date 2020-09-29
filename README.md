@@ -115,7 +115,7 @@ unzip dialogpt2-small.zip
 
 Test the model:
 ```
-python cli.py test --experiment experiments/dialogpt2-small/ --test_set data/personachat_val.json
+python cli.py test --experiment experiments/dialogpt2-small/ --test_set data/personachat_val.json --to_json
 ```
 
 ### Code Style:

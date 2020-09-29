@@ -132,6 +132,8 @@ class DataModule(pl.LightningDataModule):
         return instance
 
     def _tokenize(self, obj):
+        print (type(obj))
+        exit()
         if isinstance(obj, str):
             return self.tokenizer.encode(obj)
 
@@ -175,13 +177,7 @@ class DataModule(pl.LightningDataModule):
 
         if os.path.isfile(dataset_cache):
             click.secho(f"Loading tokenized dataset from cache: {dataset_cache}.")
-            dataset = torch.load(dataset_cache)
-            personalities = [
-                dialog["personality"]
-                for dataset in dataset.values()
-                for dialog in dataset
-            ]
-            return dataset
+            return torch.load(dataset_cache)
         else:
             dataset_file = dataset_path
 
