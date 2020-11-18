@@ -132,8 +132,6 @@ class DataModule(pl.LightningDataModule):
         return instance
 
     def _tokenize(self, obj):
-        print (type(obj))
-        exit()
         if isinstance(obj, str):
             return self.tokenizer.encode(obj)
 
