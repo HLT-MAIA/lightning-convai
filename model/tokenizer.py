@@ -9,12 +9,12 @@ from transformers import AutoTokenizer
 
 from torchnlp.encoders.text.text_encoder import TextEncoder
 
-SPECIAL_TOKENS = ["<bos>", "<eos>", "<speaker1>", "<speaker2>", "<pad>"]
+SPECIAL_TOKENS = ["<bos>", "<eos>", "<user>", "<assistant>", "<pad>"]
 ATTR_TO_SPECIAL_TOKEN = {
     "bos_token": "<bos>",
     "eos_token": "<eos>",  # "<|endoftext|>" for DialoGPT2!
     "pad_token": "<pad>",
-    "additional_special_tokens": ["<speaker1>", "<speaker2>"],
+    "additional_special_tokens": ["<user>", "<assistant>"],
 }
 
 
@@ -35,9 +35,9 @@ class Tokenizer(TextEncoder):
         self.eos_index = self.tokenizer.eos_token_id
         self.bos_index = self.tokenizer.eos_token_id
         self.vocab = self.tokenizer.get_vocab()
-        self.speaker1_index = self.vocab["<speaker1>"]
-        self.speaker2_index = self.vocab["<speaker2>"]
-
+        self.user_index = self.vocab["<user>"]
+        self.assistant_index = self.vocab["<assistant>"]
+        
     def encode(self, sequence: str) -> torch.Tensor:
         """Encodes a 'sequence'.
         :param sequence: String 'sequence' to encode.

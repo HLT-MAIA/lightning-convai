@@ -1,6 +1,8 @@
 *.pkl
 *DS_Store 
 data/personachat_self_original.json
+data/taskmaster
+experiments/
 
 .vscode
 # Byte-compiled / optimized / DLL files
