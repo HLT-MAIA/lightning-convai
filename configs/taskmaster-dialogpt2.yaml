@@ -31,8 +31,8 @@
     pretrained_model: microsoft/DialoGPT-small
     dataset_path: data/taskmaster/taskmaster.json  
     batch_size: 2                             # Batche size used during training.
-    max_history: 4                            # Max number of context sentences
-    num_candidates: 4                         # Number of distractors 
+    max_history: 2                            # Max number of context sentences
+    num_candidates: 3                         # Number of distractors 
     
     # -------------------------------- GPT2 Fine-tuning -----------------------------------------------
     learning_rate: 6.25e-5                    # Learning rate to be used during fine-tuning

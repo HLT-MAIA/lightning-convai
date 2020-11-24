@@ -201,9 +201,11 @@ class DataModule(pl.LightningDataModule):
         tensor_datasets = {"train": [], "valid": []}
         for dataset_name, dataset in datasets.items():
             dataset = self.pad_dataset(dataset, padding=self.tokenizer.pad_index)
-
+        
             for input_name in MODEL_INPUTS:
-                tensor =  dataset[input_name])
+                #print (len(dataset[input_name]))
+                #print (len(dataset[input_name][0]))
+                tensor =  torch.tensor(dataset[input_name])
                     
                 # MC labels contain the labels within the batch!
                 # Thats why we have to split the data according to those batches.
