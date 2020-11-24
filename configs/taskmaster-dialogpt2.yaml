@@ -30,7 +30,7 @@
     # --------------------------------- Dataset -------------------------------------------------------
     pretrained_model: microsoft/DialoGPT-small
     dataset_path: data/taskmaster/taskmaster.json  
-    batch_size: 2                             # Batche size used during training.
+    batch_size: 2                             # Batch size used during training.
     max_history: 2                            # Max number of context sentences
     num_candidates: 3                         # Number of distractors 
     

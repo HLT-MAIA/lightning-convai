@@ -70,7 +70,7 @@ class DataModule(pl.LightningDataModule):
 
         sequence = (
             [[bos] + domain]  # concats all domain sentences
-            + history  # concats history
+            + history         # concats history
             + [[assistant] + reply + [eos]]  # concats reply
         )
         instance = {
@@ -81,15 +81,20 @@ class DataModule(pl.LightningDataModule):
                 for _ in s
             ],
         }
-        instance["mc_token_ids"] = len(instance["input_ids"]) - 1
-
-        instance["lm_labels"] = [-100] * len(instance["input_ids"])
         if lm_labels:
             instance["lm_labels"] = (
                 ([-100] * sum(len(s) for s in sequence[:-1]))
                 + [-100]
                 + sequence[-1][1:]
             )
+
+        if len(list(chain(*sequence))) > 1024:
+            instance["input_ids"] = instance["input_ids"][:1024]
+            instance["token_type_ids"] = instance["token_type_ids"][:1024]
+            instance["lm_labels"] = instance["lm_labels"][:1024]
+        
+        instance["mc_token_ids"] = len(instance["input_ids"]) - 1
+        instance["lm_labels"] = [-100] * len(instance["input_ids"])
         return instance
 
     def _tokenize(self, obj):
@@ -100,45 +105,6 @@ class DataModule(pl.LightningDataModule):
             return dict((k, self._tokenize(o)) for k, o in obj.items())
 
         return list(self._tokenize(o) for o in obj)
-
-    def _get_dataset(
-        self,
-        dataset_path: str,
-        data_folder: str = "data/",
-    ):
-        """ Reads dataset from data/ folder
-        :param dataset_path: Path to a json file containing the train and validation dataset.
-        :param data_folder: Folder used to store data.
-
-        :return: Returns a dictionary with the training and validation data.
-        """
-        dataset_hash = (
-            int(hashlib.sha256(dataset_path.encode("utf-8")).hexdigest(), 16) % 10 ** 8
-        )
-        # To avoid using cache for different models
-        # split(/) for microsoft/DialoGPT-small
-        pretrained_model = (
-            self.hparams.pretrained_model.split("/")[1]
-            if "/" in self.hparams.pretrained_model
-            else self.hparams.pretrained_model
-        )
-        dataset_cache = data_folder + ".dataset_" + str(dataset_hash) + pretrained_model
-
-        if os.path.isfile(dataset_cache):
-            click.secho(f"Loading tokenized dataset from cache: {dataset_cache}.")
-            dataset = torch.load(dataset_cache)
-            return dataset
-        else:
-            dataset_file = dataset_path
-
-        with open(dataset_file, "r", encoding="utf-8") as f:
-            dataset = json.loads(f.read())
-
-        click.secho("Running tokenization: This might take some time!", fg="yellow")
-        dataset = self._tokenize(dataset)
-        torch.save(dataset, dataset_cache)
-
-        return dataset
 
     @classmethod
     def pad_dataset(
@@ -160,91 +126,83 @@ class DataModule(pl.LightningDataModule):
                 for x in dataset[name]
             ]
         return dataset
-
-    def prepare_data(self):
-        """
-        Lightning DataModule function that will be used to load/download data,
-        build inputs with padding and to store everything as TensorDatasets.
-        """
-        taskmaster = self._get_dataset(self.hparams.dataset_path)
-
-        click.secho("Building inputs and labels.", fg="yellow")
-        datasets = {"train": defaultdict(list), "valid": defaultdict(list)}
-        for dataset_name, dataset in taskmaster.items():
-
-            num_candidates = len(dataset[0]["utterances"][0]["candidates"])
-            if self.hparams.num_candidates > 0 and dataset_name == "train":
-                num_candidates = min(self.hparams.num_candidates, num_candidates)
-
-            for dialog in dataset:
-                domain = dialog["domain"].copy()
-
-                for l, utterance in enumerate(dialog["utterances"]):
-                    history = utterance["history"][
-                        -(2 * self.hparams.max_history + 1) :
-                    ]
-
-                    for j, candidate in enumerate(
-                        utterance["candidates"][-num_candidates:]
-                    ):
-                        lm_labels = bool(j == num_candidates - 1)
-                        instance = self.build_input(
-                            self.tokenizer, domain, history, candidate, lm_labels
-                        )
-                        for input_name, input_array in instance.items():
-                            datasets[dataset_name][input_name].append(input_array)
-                            
-                    datasets[dataset_name]["mc_labels"].append(num_candidates - 1)
-                    datasets[dataset_name]["n_candidates"] = num_candidates
-
-        click.secho("Padding inputs and building tensors.", fg="yellow")
-        tensor_datasets = {"train": [], "valid": []}
-        for dataset_name, dataset in datasets.items():
-            dataset = self.pad_dataset(dataset, padding=self.tokenizer.pad_index)
+    
+    def setup(self, stage) -> None:
+        """Data preparation function called before training by Lightning.
+        Equivalent to the prepare_data in previous Lightning Versions"""
         
-            for input_name in MODEL_INPUTS:
-                #print (len(dataset[input_name]))
-                #print (len(dataset[input_name][0]))
-                tensor =  torch.tensor(dataset[input_name])
-                    
-                # MC labels contain the labels within the batch!
-                # Thats why we have to split the data according to those batches.
-                if input_name != "mc_labels":
-                    tensor = tensor.view(
-                        (-1, datasets[dataset_name]["n_candidates"]) + tensor.shape[1:]
-                    )
+        with open(self.hparams.dataset_path) as json_file:
+            dataset = json.load(json_file)
+        
+        self.train_dataset = dataset["train"]
+        self.valid_dataset = dataset["valid"]
 
-                tensor_datasets[dataset_name].append(tensor)
+    def build_training_batch(self, data):
+        return self.prepare_batch(data, train=True)
 
-        self.train_dataset = TensorDataset(*tensor_datasets["train"])
-        self.valid_dataset = TensorDataset(*tensor_datasets["valid"])
-        click.secho(
-            "Train dataset (Batch, Candidates, Seq length): {}".format(
-                self.train_dataset.tensors[0].shape
-            ),
-            fg="yellow",
-        )
-        click.secho(
-            "Valid dataset (Batch, Candidates, Seq length): {}".format(
-                self.valid_dataset.tensors[0].shape
-            ),
-            fg="yellow",
-        )
+    def build_validation_batch(self, data):
+        return self.prepare_batch(data, train=False)
+
+    def prepare_batch(self, data, train=True):
+        data = self._tokenize(data)
+        num_candidates = min([len(s["candidates"]) for s in data])
+        if self.hparams.num_candidates > 0 and train:
+            num_candidates = min(self.hparams.num_candidates, num_candidates)
+
+        batch = {k: [] for k in MODEL_INPUTS}
+        for utterance in data:
+            history = utterance["history"][
+                -(2 * self.hparams.max_history + 1):
+            ]
+            for j, candidate in enumerate(utterance["candidates"][-num_candidates:]):
+                lm_labels = bool(j == num_candidates - 1)
+                instance = self.build_input(
+                    self.tokenizer, utterance["domain"], history, candidate, lm_labels
+                )
+                for input_name, input_array in instance.items():
+                    batch[input_name].append(input_array)
+
+            batch["mc_labels"].append(num_candidates - 1)
+            batch["n_candidates"] = num_candidates
+
+        batch = self.pad_dataset(batch, padding=self.tokenizer.pad_index)
+        for input_name in MODEL_INPUTS:
+            tensor = torch.tensor(batch[input_name])
+            # MC labels contain the labels within the batch!
+            # Thats why we have to split the data according to those batches.
+            if input_name != "mc_labels":
+                tensor = tensor.view(
+                    (-1, batch["n_candidates"]) + tensor.shape[1:]
+                )
+            batch[input_name] = tensor
+
+        del batch["n_candidates"]
+        return tuple(batch.values())
 
     def train_dataloader(self) -> DataLoader:
         """ Function that loads the train set. """
+
+        def build_training_batch(sample):
+            return self.prepare_batch(sample, train=True)
+        
         return DataLoader(
             self.train_dataset,
             batch_size=self.hparams.batch_size,
             shuffle=True,
             num_workers=multiprocessing.cpu_count(),
+            collate_fn=build_training_batch
         )
 
     def val_dataloader(self) -> DataLoader:
         """ Function that loads the validation set. """
+
+        def build_validation_batch(sample):
+            return self.prepare_batch(sample, train=False)
+
         return DataLoader(
             self.valid_dataset,
             batch_size=self.hparams.batch_size,
             shuffle=False,
             num_workers=multiprocessing.cpu_count(),
+            collate_fn=self.build_validation_batch
         )
