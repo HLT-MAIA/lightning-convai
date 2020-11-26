@@ -72,7 +72,7 @@ class DataModule(pl.LightningDataModule):
             [[bos] + domain]  # concats all domain sentences
             + history         # concats history
             + [[assistant] + reply + [eos]]  # concats reply
-        )
+        )    
         instance = {
             "input_ids": list(chain(*sequence)),
             "token_type_ids": [
@@ -81,20 +81,15 @@ class DataModule(pl.LightningDataModule):
                 for _ in s
             ],
         }
+        instance["mc_token_ids"] = len(instance["input_ids"]) - 1
+
+        instance["lm_labels"] = [-100] * len(instance["input_ids"])
         if lm_labels:
             instance["lm_labels"] = (
                 ([-100] * sum(len(s) for s in sequence[:-1]))
                 + [-100]
                 + sequence[-1][1:]
             )
-
-        if len(list(chain(*sequence))) > 1024:
-            instance["input_ids"] = instance["input_ids"][:1024]
-            instance["token_type_ids"] = instance["token_type_ids"][:1024]
-            instance["lm_labels"] = instance["lm_labels"][:1024]
-        
-        instance["mc_token_ids"] = len(instance["input_ids"]) - 1
-        instance["lm_labels"] = [-100] * len(instance["input_ids"])
         return instance
 
     def _tokenize(self, obj):
@@ -131,12 +126,12 @@ class DataModule(pl.LightningDataModule):
         """Data preparation function called before training by Lightning.
         Equivalent to the prepare_data in previous Lightning Versions"""
         
-        with open(self.hparams.dataset_path) as json_file:
-            dataset = json.load(json_file)
-        
-        self.train_dataset = dataset["train"]
-        self.valid_dataset = dataset["valid"]
+        with open(self.hparams.train_data) as json_file:
+            self.train_dataset = json.load(json_file)
 
+        with open(self.hparams.valid_data) as json_file:
+            self.valid_dataset = json.load(json_file)
+            
     def build_training_batch(self, data):
         return self.prepare_batch(data, train=True)
 

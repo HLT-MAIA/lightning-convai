@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 r""" 
-PersonaGPT2 Model
+GPT2 Language Model
 ==================
-    GPT2 Model implementing the PyTorch Lightning interface that can be used to train a Persona Chatbot.
+    GPT2 Language Model implementing the PyTorch Lightning interface that can be used to train a taskmaster Chatbot.
 """
 import os
 from argparse import Namespace
@@ -19,9 +19,9 @@ from pytorch_lightning.metrics.functional import accuracy
 from utils import Config
 
 
-class PersonaGPT2(pl.LightningModule):
+class AssistantGPT2(pl.LightningModule):
     """GPT2 Model implementing the PyTorch Lightning interface that can be used to
-        train a Persona Chatbot.
+        train a taskmaster Chatbot.
 
     :param hparams: ArgumentParser containing the hyperparameters.
     """
@@ -33,12 +33,11 @@ class PersonaGPT2(pl.LightningModule):
         :param learning_rate: Learning Rate used during training.
         :param lm_coef: Weight assigned to the LM loss.
         :param mc_coef: Weight assigned to the Multiple-Choice loss.
-        :param dataset_path: Path to a json file containing our data.
+        :param train_data: Path to a json file containing the train data.
+        :param valid_data: Path to a json file containing the validation data.
         :param batch_size: Batch Size used during training.
         :param max_history: Max number of context sentences.
         :param num_candidates: Number of distractors used during training.
-        :param personality_permutations: Max number of personality permutations.
-            (aka different persona sentence orders)
         """
 
         pretrained_model: str = "gpt2"
@@ -48,11 +47,11 @@ class PersonaGPT2(pl.LightningModule):
         mc_coef: float = 1.0
 
         # Data configs
-        dataset_path: str = ""
+        train_data: str = "data/taskmaster/taskmaster-train.json"
+        valid_data: str = "data/taskmaster/taskmaster-valid.json"
         # Training details
         batch_size: int = 2
         max_history: int = 2
-        personality_permutations: int = 2
         num_candidates: int = 4
 
     def __init__(self, hparams: Namespace):

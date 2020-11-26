@@ -19,7 +19,7 @@ from nltk.tokenize import wordpunct_tokenize
 from tqdm import tqdm
 
 from model.data_module import DataModule
-from model.gpt2 import PersonaGPT2
+from model.gpt2 import AssistantGPT2
 from pytorch_lightning import seed_everything
 from trainer import TrainerConfig, build_trainer
 
@@ -45,8 +45,8 @@ def train(config: str) -> None:
     trainer = build_trainer(train_configs.namespace())
 
     # Build Model
-    model_config = PersonaGPT2.ModelConfig(yaml_file)
-    model = PersonaGPT2(model_config.namespace())
+    model_config = AssistantGPT2.ModelConfig(yaml_file)
+    model = AssistantGPT2(model_config.namespace())
     data = DataModule(model.hparams, model.tokenizer)
     trainer.fit(model, data)
 
@@ -63,8 +63,8 @@ def interact(experiment: str) -> None:
     that impersonates a Vegan that likes cooking and radical activities such as sky-diving.
     """
     logging.disable(logging.WARNING)
-    model = PersonaGPT2.from_experiment(experiment)
-    click.secho("Hello my name is PersonaGPT2 and i'll pretend that: ", fg="yellow")
+    model = AssistantGPT2.from_experiment(experiment)
+    click.secho("Hello my name is AssistantGPT2 and i'll pretend that: ", fg="yellow")
     # persona we are going to interact with:
     persona = [
         "i am a vegan and i love hummus.",
@@ -174,7 +174,7 @@ def test(
     answers and produce replies.
     """
     logging.disable(logging.WARNING)
-    model = PersonaGPT2.from_experiment(experiment)
+    model = AssistantGPT2.from_experiment(experiment)
     seed_everything(seed)
 
     cuda = cuda and torch.cuda.is_available()
@@ -186,101 +186,76 @@ def test(
 
     replies, rankings = [], []
     for dialog in tqdm(dataset, desc="Scoring dialogs...", dynamic_ncols=True):
+        # 2) Saves Ground-Truth
+        ground_truth_reply = dialog["candidates"][-1]
 
-        # 1) Prepares Persona
-        persona = dialog["personality"].copy()
-        persona_ids = [model.tokenizer.encode(s) for s in persona]
+        # 3) Prepares History
+        history = dialog["history"][-(2 * model.hparams.max_history + 1) :]
+        history_ids = [model.tokenizer.encode(h) for h in history]
 
-        for utterance in dialog["utterances"]:
-
-            # 2) Saves Ground-Truth
-            ground_truth_reply = utterance["candidates"][-1]
-
-            # 3) Prepares History
-            history = utterance["history"][-(2 * model.hparams.max_history + 1) :]
-            history_ids = [model.tokenizer.encode(h) for h in history]
-
-            # 4) Rank Candidates in batch:
-            batch = []
-            for j, candidate in enumerate(utterance["candidates"]):
-                candidate_ids = model.tokenizer.encode(candidate)
-                instance = DataModule.build_input(
-                    tokenizer=model.tokenizer,
-                    persona=persona_ids,
-                    history=history_ids,
-                    reply=candidate_ids,
-                )
-                batch.append(instance)
-
-            # from list of dictionaries to dictionary of lists
-            batch = {k: [d[k] for d in batch] for k in batch[0]}
-            batch = DataModule.pad_dataset(batch)
-            if cuda:
-                batch = {k: torch.LongTensor(v).cuda() for k, v in batch.items()}
-            else:
-                batch = {k: torch.LongTensor(v) for k, v in batch.items()}
-
-            mc_logits = model(**batch).mc_logits
-
-            rankings.append(
-                {
-                    "persona": persona,
-                    "history": history,
-                    "candidates": utterance["candidates"],
-                    "ranking": torch.topk(
-                        mc_logits, len(utterance["candidates"])
-                    ).indices.tolist(),
-                }
+        # 4) Rank Candidates in batch:
+        batch = []
+        for j, candidate in enumerate(dialog["candidates"]):
+            candidate_ids = model.tokenizer.encode(candidate)
+            instance = DataModule.build_input(
+                tokenizer=model.tokenizer,
+                domain=persona_ids,
+                history=history_ids,
+                reply=candidate_ids,
             )
+            batch.append(instance)
 
-            # 5) Generates Reply
-            bot_input = DataModule.build_input(
-                tokenizer=model.tokenizer, persona=persona_ids, history=history_ids
+        # from list of dictionaries to dictionary of lists
+        batch = {k: [d[k] for d in batch] for k in batch[0]}
+        batch = DataModule.pad_dataset(batch)
+        if cuda:
+            batch = {k: torch.LongTensor(v).cuda() for k, v in batch.items()}
+        else:
+            batch = {k: torch.LongTensor(v) for k, v in batch.items()}
+
+        mc_logits = model(**batch).mc_logits
+        rankings.append({
+            "persona": persona,
+            "history": history,
+                "candidates": dialog["candidates"],
+                "ranking": torch.topk(
+                    mc_logits, len(dialog["candidates"])
+                ).indices.tolist(),
+        })
+
+        # 5) Generates Reply
+        bot_input = DataModule.build_input(
+            tokenizer=model.tokenizer, persona=persona_ids, history=history_ids
+        )
+        # Nucleus Sampling
+        if sample:
+            history_ids = model.generate(
+                input_ids=torch.LongTensor([bot_input["input_ids"]]).cuda() if cuda else torch.LongTensor([bot_input["input_ids"]]),
+                token_type_ids=torch.LongTensor([bot_input["token_type_ids"]]).cuda() if cuda else torch.LongTensor([bot_input["token_type_ids"]]),        
+                max_length=200,
+                do_sample=True,
+                top_p=top_p,
+                temperature=0.7,
             )
-            # Nucleus Sampling
-            if sample:
-                history_ids = model.generate(
-                    input_ids=torch.LongTensor([bot_input["input_ids"]]).cuda()
-                    if cuda
-                    else torch.LongTensor([bot_input["input_ids"]]),
-                    token_type_ids=torch.LongTensor(
-                        [bot_input["token_type_ids"]]
-                    ).cuda()
-                    if cuda
-                    else torch.LongTensor([bot_input["token_type_ids"]]),
-                    max_length=200,
-                    do_sample=True,
-                    top_p=top_p,
-                    temperature=0.7,
-                )
             # Beam Search
-            else:
-                history_ids = model.generate(
-                    input_ids=torch.LongTensor([bot_input["input_ids"]]).cuda()
-                    if cuda
-                    else torch.LongTensor([bot_input["input_ids"]]),
-                    token_type_ids=torch.LongTensor(
-                        [bot_input["token_type_ids"]]
-                    ).cuda()
-                    if cuda
-                    else torch.LongTensor([bot_input["token_type_ids"]]),
-                    max_length=200,
-                    num_beams=num_beams,
-                    no_repeat_ngram_size=2,
-                    early_stopping=True,
-                )
-
-            bot_reply_ids = history_ids[:, len(bot_input["input_ids"]) :][0]
-            bot_reply = model.tokenizer.decode(bot_reply_ids, skip_special_tokens=True)
-
-            replies.append(
-                {
-                    "persona": persona,
-                    "history": history,
-                    "bot": " ".join(wordpunct_tokenize(bot_reply.lower())),
-                    "human": ground_truth_reply,
-                }
+        else:
+            history_ids = model.generate(
+                input_ids=torch.LongTensor([bot_input["input_ids"]]).cuda() if cuda else torch.LongTensor([bot_input["input_ids"]]),
+                token_type_ids=torch.LongTensor([bot_input["token_type_ids"]]).cuda() if cuda else torch.LongTensor([bot_input["token_type_ids"]]),
+                max_length=200,
+                num_beams=num_beams,
+                no_repeat_ngram_size=2,
+                early_stopping=True,
             )
+        bot_reply_ids = history_ids[:, len(bot_input["input_ids"]) :][0]
+        bot_reply = model.tokenizer.decode(bot_reply_ids, skip_special_tokens=True)
+
+        replies.append({
+            "persona": persona,
+            "history": history,
+            "bot": " ".join(wordpunct_tokenize(bot_reply.lower())),
+            "human": ground_truth_reply,
+        })
 
     # 6) Runs Ranking Metrics
     hits_1, hits_5, hits_10 = [], [], []
