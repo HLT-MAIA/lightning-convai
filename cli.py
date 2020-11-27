@@ -186,6 +186,9 @@ def test(
 
     replies, rankings = [], []
     for dialog in tqdm(dataset, desc="Scoring dialogs...", dynamic_ncols=True):
+        # 1) Prepares Domain
+        domain_ids = model.tokenizer.encode(dialog["domain"])
+
         # 2) Saves Ground-Truth
         ground_truth_reply = dialog["candidates"][-1]
 
@@ -199,7 +202,7 @@ def test(
             candidate_ids = model.tokenizer.encode(candidate)
             instance = DataModule.build_input(
                 tokenizer=model.tokenizer,
-                domain=persona_ids,
+                domain=domain_ids,
                 history=history_ids,
                 reply=candidate_ids,
             )
@@ -214,24 +217,30 @@ def test(
             batch = {k: torch.LongTensor(v) for k, v in batch.items()}
 
         mc_logits = model(**batch).mc_logits
-        rankings.append({
-            "persona": persona,
-            "history": history,
+        rankings.append(
+            {
+                "domain": dialog["domain"],
+                "history": history,
                 "candidates": dialog["candidates"],
                 "ranking": torch.topk(
                     mc_logits, len(dialog["candidates"])
                 ).indices.tolist(),
-        })
+            }
+        )
 
         # 5) Generates Reply
         bot_input = DataModule.build_input(
-            tokenizer=model.tokenizer, persona=persona_ids, history=history_ids
+            tokenizer=model.tokenizer, domain=domain_ids, history=history_ids
         )
         # Nucleus Sampling
         if sample:
             history_ids = model.generate(
-                input_ids=torch.LongTensor([bot_input["input_ids"]]).cuda() if cuda else torch.LongTensor([bot_input["input_ids"]]),
-                token_type_ids=torch.LongTensor([bot_input["token_type_ids"]]).cuda() if cuda else torch.LongTensor([bot_input["token_type_ids"]]),        
+                input_ids=torch.LongTensor([bot_input["input_ids"]]).cuda()
+                if cuda
+                else torch.LongTensor([bot_input["input_ids"]]),
+                token_type_ids=torch.LongTensor([bot_input["token_type_ids"]]).cuda()
+                if cuda
+                else torch.LongTensor([bot_input["token_type_ids"]]),
                 max_length=200,
                 do_sample=True,
                 top_p=top_p,
@@ -240,8 +249,12 @@ def test(
             # Beam Search
         else:
             history_ids = model.generate(
-                input_ids=torch.LongTensor([bot_input["input_ids"]]).cuda() if cuda else torch.LongTensor([bot_input["input_ids"]]),
-                token_type_ids=torch.LongTensor([bot_input["token_type_ids"]]).cuda() if cuda else torch.LongTensor([bot_input["token_type_ids"]]),
+                input_ids=torch.LongTensor([bot_input["input_ids"]]).cuda()
+                if cuda
+                else torch.LongTensor([bot_input["input_ids"]]),
+                token_type_ids=torch.LongTensor([bot_input["token_type_ids"]]).cuda()
+                if cuda
+                else torch.LongTensor([bot_input["token_type_ids"]]),
                 max_length=200,
                 num_beams=num_beams,
                 no_repeat_ngram_size=2,
@@ -250,12 +263,14 @@ def test(
         bot_reply_ids = history_ids[:, len(bot_input["input_ids"]) :][0]
         bot_reply = model.tokenizer.decode(bot_reply_ids, skip_special_tokens=True)
 
-        replies.append({
-            "persona": persona,
-            "history": history,
-            "bot": " ".join(wordpunct_tokenize(bot_reply.lower())),
-            "human": ground_truth_reply,
-        })
+        replies.append(
+            {
+                "domain": dialog["domain"],
+                "history": history,
+                "bot": " ".join(wordpunct_tokenize(bot_reply.lower())),
+                "human": ground_truth_reply,
+            }
+        )
 
     # 6) Runs Ranking Metrics
     hits_1, hits_5, hits_10 = [], [], []
