@@ -1,17 +1,25 @@
 # State-of-the-art Conversational AI
 
-This code is based on the [transfer-learning-conv-ai](https://github.com/huggingface/transfer-learning-conv-ai) repo from Hugging Face. Please check the accompanying blog post [How to build a State-of-the-Art Conversational AI with Transfer Learning](https://medium.com/huggingface/how-to-build-a-state-of-the-art-conversational-ai-with-transfer-learning-2d818ac26313).
-
-The major difference is that we use [PyTorch Lightning](https://pytorch-lightning.readthedocs.io/en/0.9.0/) instead of [Ignite](https://pytorch.org/ignite/) and a more "up to date" version of [Transformers](https://huggingface.co/transformers/). We also made an effort to make everything well documented and "easy" to understand.
+This code is inspired on the [transfer-learning-conv-ai](https://github.com/huggingface/transfer-learning-conv-ai) repo from Hugging Face. Please check the accompanying blog post [How to build a State-of-the-Art Conversational AI with Transfer Learning](https://medium.com/huggingface/how-to-build-a-state-of-the-art-conversational-ai-with-transfer-learning-2d818ac26313).
 
 # Model Architecture
 
-<div style="text-align:center"><img src="resources/convai_model.png" alt="architecture"></div>
+We provide two different models: The **AssistantGPT2** and the **AssistantT5**.
 
-Our model is built on top of a pretrained GPT2 model and its is trained in a multi-task setting where we minimize the following losses:
-- Language modeling: we project the hidden-state on the word embedding matrix to get logits and apply a cross-entropy loss on the portion of the target corresponding to the gold reply (green labels on the above figure).
+Both models are trained in a multitask setting where we minimizie the following losses:
+- Reply Language Modeling: we project the hidden-state on the word embedding matrix to get logits and apply a cross-entropy loss on the portion of the target corresponding to the gold reply.
 - Next-sentence prediction: we pass the hidden-state of the last token (the end-of-sequence token) through a linear layer to get a score and apply a cross-entropy loss to classify correctly a gold answer among distractors.
 
+Yet, while the **AssistantGPT2** is a decoder only model trained on top of a pretrained GPT2, the **AssistantT5** is a encoder-decoder model trained on top of a pretrained T5.
+
+## Decoder Model
+<div style="text-align:center"><img src="resources/DialoGPT2.png" alt="architecture"></div>
+
+This model is built on top of a pretrained GPT2 model and its is trained in a multi-task setting where we minimize the following losses:
+
+
+## Encoder-Decoder Model
+<div style="text-align:center"><img src="resources/t5.png" alt="architecture"></div>
 
 ## Install:
 
@@ -80,40 +88,6 @@ Options:
                        [default: False]
 
   --help               Show this message and exit.
-```
-
-
-## Interact:
-Fun command where we can interact with with a trained model that impersonates a Vegan that likes cooking and radical activities such as sky-diving.
-
-```bash
-python cli.py interact --experiment experiments/{experiment_id}/
-```
-
-## Benchmarks:
-
-Training with the `example.yaml` config should result in the following:
-
-| Metric  | GPT2  | DialoGPT-small |
-| :-----: | :----: | :----: |
-| Hits@1↑ | 0.8023 | 0.8231 |
-| Hits@5↑ | 0.9721 | 0.9771 |
-| Hits@10↑ | 0.9948 | 0.9960 |
-| BLEU↑ | 2.7799 | 2.9633 |
-| TER↓ | 1.0497 | 1.0528 |
-| BERTScore↑ | 0.8548 | 0.8548 |
-
-Download DialoGPT2-small trained with PersonaChat:
-
-```bash
-cd experiments
-wget https://unbabel-experimental-models.s3.amazonaws.com/maia/persona/dialogpt2-small.zip
-unzip dialogpt2-small.zip
-```
-
-Test the model:
-```
-python cli.py test --experiment experiments/dialogpt2-small/ --test_set data/personachat_val.json
 ```
 
 ### Code Style:
