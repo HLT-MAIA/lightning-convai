@@ -19,7 +19,7 @@ This model is built on top of a pretrained GPT2 model and its is trained in a mu
 
 
 ## Encoder-Decoder Model
-<div style="text-align:center"><img src="resources/t5.jpg" alt="architecture"></div>
+<div style="text-align:center"><img src="resources/T5.jpg" alt="architecture"></div>
 
 ## Install:
 
