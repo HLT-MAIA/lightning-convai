@@ -13,13 +13,13 @@ Both models are trained in a multitask setting where we minimizie the following 
 Yet, while the **AssistantGPT2** is a decoder only model trained on top of a pretrained GPT2, the **AssistantT5** is a encoder-decoder model trained on top of a pretrained T5.
 
 ## Decoder Model
-<div style="text-align:center"><img src="resources/DialoGPT2.png" alt="architecture"></div>
+<div style="text-align:center"><img src="resources/DialoGPT2.jpg" alt="architecture"></div>
 
 This model is built on top of a pretrained GPT2 model and its is trained in a multi-task setting where we minimize the following losses:
 
 
 ## Encoder-Decoder Model
-<div style="text-align:center"><img src="resources/t5.png" alt="architecture"></div>
+<div style="text-align:center"><img src="resources/t5.jpg" alt="architecture"></div>
 
 ## Install:
 
