@@ -16,11 +16,10 @@ import sacrebleu
 import torch
 import yaml
 from nltk.tokenize import wordpunct_tokenize
+from pytorch_lightning import seed_everything
 from tqdm import tqdm
 
-from model.data_module import DataModule
-from model.gpt2 import AssistantGPT2
-from pytorch_lightning import seed_everything
+from models import AssistantGPT2, AssistantT5, GPT2DataModule, T5DataModule
 from trainer import TrainerConfig, build_trainer
 
 
@@ -45,63 +44,19 @@ def train(config: str) -> None:
     trainer = build_trainer(train_configs.namespace())
 
     # Build Model
-    model_config = AssistantGPT2.ModelConfig(yaml_file)
-    model = AssistantGPT2(model_config.namespace())
-    data = DataModule(model.hparams, model.tokenizer)
+    if yaml_file["model"] == "AssistantGPT2":
+        model_config = AssistantGPT2.ModelConfig(yaml_file)
+        model = AssistantGPT2(model_config.namespace())
+        data = GPT2DataModule(model.hparams, model.tokenizer)
+    elif yaml_file["model"] == "AssistantT5":
+        model_config = AssistantT5.ModelConfig(yaml_file)
+        model = AssistantT5(model_config.namespace())
+        data = T5DataModule(model.hparams, model.tokenizer)
+    else:
+        Exception("Invalid model: {}".format(yaml_file["model"]))
+
     trainer.fit(model, data)
 
-
-@cli.command(name="interact")
-@click.option(
-    "--experiment",
-    type=click.Path(exists=True),
-    required=True,
-    help="Path to the experiment folder containing the checkpoint we want to interact with.",
-)
-def interact(experiment: str) -> None:
-    """Interactive mode command where we can have a conversation with a trained model
-    that impersonates a Vegan that likes cooking and radical activities such as sky-diving.
-    """
-    logging.disable(logging.WARNING)
-    model = AssistantGPT2.from_experiment(experiment)
-    click.secho("Hello my name is AssistantGPT2 and i'll pretend that: ", fg="yellow")
-    # persona we are going to interact with:
-    persona = [
-        "i am a vegan and i love hummus.",
-        "i love rollercoasters and sky diving.",
-        "i do like watching cooking shows.",
-        "i am not a good swimmer at all.",
-    ]
-    persona_ids = [model.tokenizer.encode(s) for s in persona]
-
-    for sentence in persona:
-        click.secho(sentence, fg="yellow")
-    click.secho("Let's talk:", fg="yellow")
-
-    history = []
-    while True:
-        raw_text = input(">>> ")
-        while not raw_text:
-            print("Prompt should not be empty!")
-            raw_text = input(">>> ")
-
-        history.append(model.tokenizer.encode(raw_text))
-        bot_input = DataModule.build_input(
-            tokenizer=model.tokenizer, persona=persona_ids, history=history
-        )
-
-        history_ids = model.generate(
-            input_ids=torch.LongTensor([bot_input["input_ids"]]),
-            token_type_ids=torch.LongTensor([bot_input["token_type_ids"]]),
-            max_length=200,
-            do_sample=True,
-            top_p=0.9,
-            temperature=0.7,
-        )
-        bot_reply_ids = history_ids[:, len(bot_input["input_ids"]) :][0]
-        bot_reply = model.tokenizer.decode(bot_reply_ids, skip_special_tokens=True)
-        print("BOT: {}".format(bot_reply))
-        history.append(bot_reply_ids.tolist())
 
 
 @cli.command(name="test")
@@ -174,9 +129,20 @@ def test(
     answers and produce replies.
     """
     logging.disable(logging.WARNING)
-    model = AssistantGPT2.from_experiment(experiment)
-    seed_everything(seed)
+    hparams_file = experiment + "hparams.yaml"
+    hparams = yaml.load(open(hparams_file).read(), Loader=yaml.FullLoader)
 
+    if "T5" in hparams["model"]:
+        model_class = AssistantT5
+        data_class = T5DataModule
+    else:
+        model_class = AssistantGPT2
+        data_class = GPT2DataModule
+
+    model = model_class.from_experiment(experiment)
+    data_module = data_class(model.hparams, model.tokenizer)
+
+    seed_everything(seed)
     cuda = cuda and torch.cuda.is_available()
     if cuda:
         model.to("cuda")
@@ -186,89 +152,64 @@ def test(
 
     replies, rankings = [], []
     for dialog in tqdm(dataset, desc="Scoring dialogs...", dynamic_ncols=True):
-        # 1) Prepares Domain
-        domain_ids = model.tokenizer.encode(dialog["domain"])
-
-        # 2) Saves Ground-Truth
-        ground_truth_reply = dialog["candidates"][-1]
-
-        # 3) Prepares History
-        history = dialog["history"][-(2 * model.hparams.max_history + 1) :]
-        history_ids = [model.tokenizer.encode(h) for h in history]
-
-        # 4) Rank Candidates in batch:
-        batch = []
-        for j, candidate in enumerate(dialog["candidates"]):
-            candidate_ids = model.tokenizer.encode(candidate)
-            instance = DataModule.build_input(
-                tokenizer=model.tokenizer,
-                domain=domain_ids,
-                history=history_ids,
-                reply=candidate_ids,
-            )
-            batch.append(instance)
-
-        # from list of dictionaries to dictionary of lists
-        batch = {k: [d[k] for d in batch] for k in batch[0]}
-        batch = DataModule.pad_dataset(batch)
+        # 1) Prepare batch for Ranking:
+        batch = data_module.prepare_batch([dialog], train=False)
         if cuda:
-            batch = {k: torch.LongTensor(v).cuda() for k, v in batch.items()}
-        else:
-            batch = {k: torch.LongTensor(v) for k, v in batch.items()}
+            batch = {k: v.cuda() for k, v in batch.items()}
 
-        mc_logits = model(**batch).mc_logits
+        # 2) Run model to get Multiple Choice Logits:
+        model_out = model(**batch)
+
+        # 3) Save produced rankings
         rankings.append(
             {
                 "domain": dialog["domain"],
-                "history": history,
+                "history": dialog["history"][-(2 * model.hparams.max_history + 1) :],
                 "candidates": dialog["candidates"],
                 "ranking": torch.topk(
-                    mc_logits, len(dialog["candidates"])
-                ).indices.tolist(),
+                    model_out.mc_logits, len(dialog["candidates"])
+                ).indices.tolist()[0],
             }
         )
 
-        # 5) Generates Reply
-        bot_input = DataModule.build_input(
-            tokenizer=model.tokenizer, domain=domain_ids, history=history_ids
-        )
+        # 4) Generate answer
+        if "GPT2" in hparams["model"]:
+            bot_input = batch["input_ids"][0, 0, :].unsqueeze(0)
+        else:
+            bot_input = batch["encoder_input_ids"][0, 0, :].unsqueeze(0)
+
         # Nucleus Sampling
         if sample:
-            history_ids = model.generate(
-                input_ids=torch.LongTensor([bot_input["input_ids"]]).cuda()
-                if cuda
-                else torch.LongTensor([bot_input["input_ids"]]),
-                token_type_ids=torch.LongTensor([bot_input["token_type_ids"]]).cuda()
-                if cuda
-                else torch.LongTensor([bot_input["token_type_ids"]]),
-                max_length=200,
+            bot_reply_ids = model.generate(
+                input_ids=bot_input,
+                token_type_ids=batch["token_type_ids"][0, 0, :].unsqueeze(0)
+                if "GPT2" in hparams["model"]
+                else None,
+                max_length=400,
                 do_sample=True,
                 top_p=top_p,
                 temperature=0.7,
             )
-            # Beam Search
+        # Beam Search
         else:
-            history_ids = model.generate(
-                input_ids=torch.LongTensor([bot_input["input_ids"]]).cuda()
-                if cuda
-                else torch.LongTensor([bot_input["input_ids"]]),
-                token_type_ids=torch.LongTensor([bot_input["token_type_ids"]]).cuda()
-                if cuda
-                else torch.LongTensor([bot_input["token_type_ids"]]),
-                max_length=200,
+            bot_reply_ids = model.generate(
+                input_ids=bot_input,
+                token_type_ids=batch["token_type_ids"][0, 0, :].unsqueeze(0)
+                if "GPT2" in hparams["model"]
+                else None,
+                max_length=400,
                 num_beams=num_beams,
                 no_repeat_ngram_size=2,
                 early_stopping=True,
             )
-        bot_reply_ids = history_ids[:, len(bot_input["input_ids"]) :][0]
-        bot_reply = model.tokenizer.decode(bot_reply_ids, skip_special_tokens=True)
-
+        bot_reply = model.tokenizer.decode(bot_reply_ids[0], skip_special_tokens=True)
+        # Save generated replies
         replies.append(
             {
                 "domain": dialog["domain"],
-                "history": history,
-                "bot": " ".join(wordpunct_tokenize(bot_reply.lower())),
-                "human": ground_truth_reply,
+                "history": dialog["history"][-(2 * model.hparams.max_history + 1) :],
+                "bot": bot_reply,
+                "human": dialog["candidates"][-1],
             }
         )
 
