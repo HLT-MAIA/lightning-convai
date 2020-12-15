@@ -19,25 +19,25 @@ deterministic: True                       # if true enables cudnn.deterministic.
 overfit_batches: 0.0                      # DEGUB: Uses this much data of the training set. If nonzero, will use the same training set for validation and testing.
 accumulate_grad_batches: 8                # Gradient accumulation steps
 min_epochs: 1                             # Min number of epochs
-max_epochs: 2                             # Max number of epochs
-# limit_train_batches: 0.4                  # To train with a lower percentage of the training data you can use this flag
+max_epochs: 15                            # Max number of epochs
+# limit_train_batches: 0.4                # To train with a lower percentage of the training data you can use this flag
 # limit_val_batches: 500                  # Same as the previous flag but for validation. 
 # val_check_interval: 0.25                # How often within one training epoch to check the validation set. Can specify as float or int.
 # precision: 16                           # Train with 16 bit precision
 # profiler: True                          # To profile individual steps during training and assist in identifying bottlenecks.
 # resume_from_checkpoint: checkpoint.ckpt # To resume training from a specific checkpoint pass in the path here.
 
-train_data: data/taskmaster/taskmaster-train.json
-valid_data: data/taskmaster/taskmaster-valid.json
+train_data: data/polyglot-taskmaster/TM-en-train.json
+valid_data: data/polyglot-taskmaster/TM-en-dev.json
 
 batch_size: 2                             # Batch size used during training.
 max_history: 2                            # Max number of context sentences
-num_candidates: 3                         # Number of distractors 
+num_candidates: 5                         # Number of distractors 
 
 # -------------------------------- T5 Fine-tuning -----------------------------------------------
 model: AssistantT5
-pretrained_model: t5-small
-learning_rate: 6.25e-5                    # Learning rate to be used during fine-tuning  
+pretrained_model: google/t5-small
+learning_rate: 1.0e-4                     # Learning rate to be used during fine-tuning  
 lm_coef: 2.0                              # Language model loss weight
 mc_coef: 1.0                              # Multiple-choice loss weight
     

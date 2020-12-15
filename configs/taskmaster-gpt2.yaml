@@ -29,8 +29,9 @@ max_epochs: 2                             # Max number of epochs
 
 # --------------------------------- Dataset -------------------------------------------------------
 pretrained_model: gpt2
-train_data: data/taskmaster/taskmaster-train.json 
-valid_data: data/taskmaster/taskmaster-valid.json 
+train_data: data/polyglot-taskmaster/TM-en-train.json
+valid_data: data/polyglot-taskmaster/TM-en-train.json
+
 batch_size: 2                             # Batch size used during training.
 max_history: 2                            # Max number of context sentences
 num_candidates: 3                         # Number of distractors 
