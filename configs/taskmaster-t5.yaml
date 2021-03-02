@@ -36,7 +36,7 @@ num_candidates: 5                         # Number of distractors
 
 # -------------------------------- T5 Fine-tuning -----------------------------------------------
 model: AssistantT5
-pretrained_model: google/t5-small
+pretrained_model: t5-small
 learning_rate: 1.0e-4                     # Learning rate to be used during fine-tuning  
 lm_coef: 2.0                              # Language model loss weight
 mc_coef: 1.0                              # Multiple-choice loss weight
