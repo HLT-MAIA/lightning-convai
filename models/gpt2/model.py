@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 import yaml
 from transformers import AdamW, GPT2DoubleHeadsModel
-from transformers.modeling_gpt2 import GPT2DoubleHeadsModelOutput
+from transformers.models.gpt2.modeling_gpt2 import GPT2DoubleHeadsModelOutput
 
 import pytorch_lightning as pl
 from models.tokenizer import Tokenizer

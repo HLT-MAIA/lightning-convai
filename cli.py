@@ -9,6 +9,7 @@ Command Line Interface
 """
 import json
 import logging
+import os
 
 import bert_score
 import click
@@ -19,7 +20,7 @@ from nltk.tokenize import wordpunct_tokenize
 from pytorch_lightning import seed_everything
 from tqdm import tqdm
 
-from models import AssistantGPT2, AssistantT5, GPT2DataModule, T5DataModule
+from models import AssistantGPT2, AssistantT5, AssistantMT5, GPT2DataModule, T5DataModule, MT5DataModule 
 from trainer import TrainerConfig, build_trainer
 
 
@@ -52,6 +53,10 @@ def train(config: str) -> None:
         model_config = AssistantT5.ModelConfig(yaml_file)
         model = AssistantT5(model_config.namespace())
         data = T5DataModule(model.hparams, model.tokenizer)
+    elif yaml_file["model"] == "AssistantMT5":
+        model_config = AssistantMT5.ModelConfig(yaml_file)
+        model = AssistantMT5(model_config.namespace())
+        data = MT5DataModule(model.hparams, model.tokenizer)
     else:
         Exception("Invalid model: {}".format(yaml_file["model"]))
 
@@ -129,15 +134,20 @@ def test(
     answers and produce replies.
     """
     logging.disable(logging.WARNING)
-    hparams_file = experiment + "hparams.yaml"
+    hparams_file = os.path.join(experiment, "hparams.yaml")
     hparams = yaml.load(open(hparams_file).read(), Loader=yaml.FullLoader)
 
-    if "T5" in hparams["model"]:
+    if "GPT2" in hparams["model"]:
+        model_class = AssistantGPT2
+        data_class = GPT2DataModule
+    elif "MT5" in hparams["model"]:
+        model_class = AssistantMT5
+        data_class = MT5DataModule
+    elif "T5" in hparams["model"]:
         model_class = AssistantT5
         data_class = T5DataModule
     else:
-        model_class = AssistantGPT2
-        data_class = GPT2DataModule
+        Exception("Invalid model: {}".format(hparams["model"]))
 
     model = model_class.from_experiment(experiment)
     data_module = data_class(model.hparams, model.tokenizer)
