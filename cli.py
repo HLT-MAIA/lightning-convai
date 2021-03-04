@@ -20,7 +20,14 @@ from nltk.tokenize import wordpunct_tokenize
 from pytorch_lightning import seed_everything
 from tqdm import tqdm
 
-from models import AssistantGPT2, AssistantT5, AssistantMT5, GPT2DataModule, T5DataModule, MT5DataModule 
+from models import (
+    AssistantGPT2,
+    AssistantT5,
+    AssistantMT5,
+    GPT2DataModule,
+    T5DataModule,
+    MT5DataModule,
+)
 from trainer import TrainerConfig, build_trainer
 
 
@@ -61,7 +68,6 @@ def train(config: str) -> None:
         Exception("Invalid model: {}".format(yaml_file["model"]))
 
     trainer.fit(model, data)
-
 
 
 @cli.command(name="test")

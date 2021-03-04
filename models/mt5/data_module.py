@@ -7,9 +7,8 @@ from models.data_module import BaseDataModule
 
 
 class MT5DataModule(BaseDataModule):
-    """Equal to T5 data_module
-    """
-    
+    """Equal to T5 data_module"""
+
     @classmethod
     def model_inputs(cls):
         return [
