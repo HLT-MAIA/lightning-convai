@@ -168,13 +168,13 @@ class AssistantBase(pl.LightningModule):
 
         :return:Pretrained model.
         """
-        hparams_file = experiment_folder + "hparams.yaml"
+        hparams_file = os.path.join(experiment_folder, "hparams.yaml")
         hparams = yaml.load(open(hparams_file).read(), Loader=yaml.FullLoader)
 
         checkpoints = [
             file for file in os.listdir(experiment_folder) if file.endswith(".ckpt")
         ]
-        checkpoint_path = experiment_folder + checkpoints[-1]
+        checkpoint_path = os.path.join(experiment_folder, checkpoints[-1])
         model = cls.load_from_checkpoint(
             checkpoint_path, hparams=Namespace(**hparams), strict=True
         )
